@@ -19,7 +19,7 @@ async function latestVersions() {
 
     const latestVersionSelector =
       '#yDmH0d > c-wiz > div > div > main > div > section:nth-child(5) > div:nth-child(2) > div > ul > li.Qt4bne.HV0oG > div.pDlpAd';
-    await page.waitForSelector(latestVersionSelector);
+    await page.waitForSelector(latestVersionSelector, { timeout: 90 * 1000 });
 
     var latestVersion = await page.$eval(
       latestVersionSelector,
