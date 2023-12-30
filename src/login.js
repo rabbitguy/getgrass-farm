@@ -29,15 +29,15 @@ async function login(username, password, browser, proxyAuth) {
     const usernameSelector = '#field-\\:r0\\:';
     const passwordSelector = '#field-\\:r1\\:';
 
-    await page.waitForSelector(usernameSelector);
-    await page.waitForSelector(passwordSelector);
+    await page.waitForSelector(usernameSelector, { timeout: 90 * 1000 });
+    await page.waitForSelector(passwordSelector, { timeout: 90 * 1000 });
 
     await page.type(usernameSelector, username);
     await page.type(passwordSelector, password);
 
     const buttonSelector =
       'body > div.css-t1k2od > div > div.css-0 > div > div.css-10heyz4 > div > form > button';
-    await page.waitForSelector(buttonSelector);
+    await page.waitForSelector(buttonSelector, { timeout: 90 * 1000 });
 
     await Promise.all([
       page.click(buttonSelector),
