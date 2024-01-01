@@ -12,6 +12,7 @@ const {
   LOGIN_CHECK_FREQUENCY_HOURS,
   CHECK_FOR_UPDATES_LOGIN_FREQUENCY_MULTIPLIER,
   EXTENSION_REFRESH_FREQUENCY_MINUTES,
+  EXTENSION_REFRESH_RAND_RANGE_SECONDS,
 } = require('./constants.js');
 const login = require('./login.js');
 
@@ -91,7 +92,7 @@ async function createChromeProfileDirsIfNotExists() {
 }
 
 const intervalIds = [];
-const launching = false;
+let launching = false;
 
 async function run() {
   launching = true;
@@ -186,6 +187,54 @@ async function run() {
     await page?.close();
   }
 
+  async function reconnectExtension(page) {
+    try {
+      const spinnerSelector = '.chakra-spinner';
+      const spinner = await page.$(spinnerSelector);
+
+      if (spinner) {
+        console.log(
+          "extension is loading (says 'connecting'), timestamp:",
+          Date.now()
+        );
+        return;
+      } else {
+        // check if extension if connected or disconnected
+        const badgeSelector = '.chakra-badge';
+        const badge = await page.waitForSelector(badgeSelector, {
+          timeout: 10 * 1000,
+        });
+        const p = await badge.$('p');
+        const connectedText = await p.evaluate((el) => el.innerText);
+
+        if (connectedText === 'Connected') {
+          console.log('extension is connected, timestamp:', Date.now());
+          return;
+        } else {
+          console.log(
+            `extension is not connected. connection status: '${connectedText}'. pressing reconnect, timestamp: ${Date.now()}`
+          );
+
+          await page.evaluate(() => {
+            const reconnectButtonSelector =
+              '#menu-list-\\:r1\\:-menuitem-\\:r2\\:';
+            const button = document.querySelector(reconnectButtonSelector);
+            if (button) {
+              button.click();
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error in reconnectExtension()', error);
+    }
+  }
+
+  const getExtensionPages = async (browser) => {
+    const pages = await browser.pages();
+    return pages.filter((page) => page.url().includes(GRASS_EXTENSION_PAGE));
+  };
+
   let loginCheckCounter = 0;
 
   async function launch(checkForUpdates) {
@@ -222,6 +271,10 @@ async function run() {
     // check all are signed in
     for (let i = 0; i < browsers.length; i++) {
       await ensureLoggedIn(browsers[i], i);
+      const extensionPages = await getExtensionPages(browsers[i]);
+      if (extensionPages.length > 0) {
+        await reconnectExtension(extensionPages[0]);
+      }
     }
     launching = false;
   }
@@ -250,20 +303,18 @@ async function run() {
   }, LOGIN_CHECK_FREQUENCY_HOURS * 60 * 60 * 1000);
   intervalIds.push(launchIntervalId);
 
-  const extensionReloadIntervalId = setInterval(async () => {
+  const extensionReconnectIntervalId = setInterval(async () => {
     if (launching) {
       console.log('launching, skipping extension refresh');
       return;
     }
 
     console.log('refreshing extension. timestamp:', Date.now());
-    for (const browser of browsers) {
+    for (let i = 0; i < browsers.length; i++) {
+      const browser = browsers[i];
       try {
         // find all pages with extension url
-        const pages = await browser.pages();
-        let extensionPages = pages.filter((page) =>
-          page.url().includes(EXTENSIONID)
-        );
+        let extensionPages = await getExtensionPages(browser);
 
         if (extensionPages.length === 0) {
           console.log('no extension pages found, opening extension page');
@@ -278,10 +329,7 @@ async function run() {
         }
 
         // refresh extension page
-        const newPages = await browser.pages();
-        extensionPages = newPages.filter((page) =>
-          page.url().includes(EXTENSIONID)
-        );
+        extensionPages = await getExtensionPages(browser);
         // check length again
         if (extensionPages.length === 0) {
           console.log(
@@ -289,15 +337,26 @@ async function run() {
           );
           continue;
         }
-        console.log('refreshing extension page');
+
+        console.log('refreshing extension page for browser', i);
         const extensionPage = extensionPages[0];
-        await extensionPage.reload();
+        const [_, __, username, password] = parseProxy(users[i].proxyString);
+        await extensionPage.authenticate({ username, password });
+        await reconnectExtension(extensionPage);
       } catch (error) {
         console.error('Error refreshing extension:', error);
       }
     }
+
+    // ! doesn't work because setInterval doesn't wait for async functions to finish
+    // await new Promise((resolve) =>
+    //   setTimeout(
+    //     resolve,
+    //     Math.random() * EXTENSION_REFRESH_RAND_RANGE_SECONDS * 1000
+    //   )
+    // );
   }, EXTENSION_REFRESH_FREQUENCY_MINUTES * 60 * 1000);
-  intervalIds.push(extensionReloadIntervalId);
+  intervalIds.push(extensionReconnectIntervalId);
 }
 
 async function main() {
@@ -326,6 +385,8 @@ async function main() {
         clearIntervals();
         attempts++;
         console.error(`Error occurred: ${error}`);
+        // wait for 5 seconds before trying again
+        await new Promise((resolve) => setTimeout(resolve, 5000));
       }
     }
     return attempts >= 5;

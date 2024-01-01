@@ -52,6 +52,10 @@ async function updateExtension(extensionDir, browserVersion, latestVersion) {
 
     // Update version in version.txt
     const installedVersionFilePath = path.join(extensionDir, 'version.txt');
+    // if file doesn't exist create it
+    if (!fs.existsSync(installedVersionFilePath)) {
+      fs.writeFileSync(installedVersionFilePath, '');
+    }
     await writeFileAsync(installedVersionFilePath, latestVersion);
     console.log('Extension updated successfully...');
   } catch (error) {
