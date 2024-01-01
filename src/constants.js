@@ -5,8 +5,10 @@ const EXTENSIONID = 'ilehaonighjijnmpnagapkhpcdbhclfg';
 const EXTENSION_URL = `https://chromewebstore.google.com/detail/grass-extension/${EXTENSIONID}?hl=en`;
 const HEADLESS = false;
 const LOGIN_CHECK_FREQUENCY_HOURS = 6;
+const EXTENSION_REFRESH_FREQUENCY_MINUTES = 5;
+const EXTENSION_REFRESH_RAND_RANGE_SECONDS = 60;
 const CHECK_FOR_UPDATES_LOGIN_FREQUENCY_MULTIPLIER = 4;
-const CHROME_EXECTUABLE_PATH = '/usr/bin/google-chrome-stable';
+const CHROME_EXECUTABLE_PATH = '/usr/bin/google-chrome-stable';
 
 module.exports = {
   GRASS_LOGIN_URL,
@@ -15,6 +17,8 @@ module.exports = {
   EXTENSION_URL,
   HEADLESS,
   LOGIN_CHECK_FREQUENCY_HOURS,
+  EXTENSION_REFRESH_FREQUENCY_MINUTES,
+  EXTENSION_REFRESH_RAND_RANGE_SECONDS,
   CHECK_FOR_UPDATES_LOGIN_FREQUENCY_MULTIPLIER,
-  CHROME_EXECTUABLE_PATH,
+  CHROME_EXECUTABLE_PATH,
 };

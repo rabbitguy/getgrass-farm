@@ -134,12 +134,6 @@ echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.co
 sudo apt-get update
 sudo apt-get install nodejs -y
 
-echo "#############################"
-echo "Installing dependencies..."
-echo "#############################"
-cd $srcdir
-npm install
-
 # Start Xvfb and save its PID to a file
 Xvfb :99 -screen 0 800x600x24 &
 echo $! >/tmp/xvfb.pid
@@ -154,28 +148,8 @@ mkdir -p "$parentDir/extension"
 touch "$parentDir/extension/version.txt"
 node download-extension.js "$parentDir/extension"
 
-# echo "#############################"
-# echo "Configuring profiles..."
-# echo "#############################"
-# # Loop over the usernames and passwords
-# for i in ${!usernames[@]}; do
-#   username=${usernames[$i]}
-#   password=${passwords[$i]}
-
-#   echo "Profile $i being configured. Signing into $username..."
-
-#   # Create a new user data directory
-#   dir="$parentDir/chrome_profiles/$i"
-#   mkdir -p $dir
-
-#   # Run the Puppeteer script to configure the profile
-#   node configure-profile.js $dir "$parentDir/extension/grass-extension" $username $password
-# done
-
 # Kill the Xvfb process
 kill $(cat /tmp/xvfb.pid)
-
-cd $currentdir
 
 echo "" >>"$parentDir/src/start.sh"
 {

@@ -3,7 +3,7 @@ const login = require('./login.js');
 const {
   GRASS_EXTENSION_PAGE,
   HEADLESS,
-  CHROME_EXECTUABLE_PATH,
+  CHROME_EXECUTABLE_PATH,
 } = require('./constants.js');
 
 (async () => {
@@ -15,7 +15,7 @@ const {
   try {
     var browser = await puppeteer.launch({
       headless: HEADLESS,
-      executablePath: CHROME_EXECTUABLE_PATH,
+      executablePath: CHROME_EXECUTABLE_PATH,
       userDataDir: dir,
       args: [
         `--disable-extensions-except=${extensionDir}`,

@@ -8,9 +8,10 @@ const {
   GRASS_LOGIN_URL,
   GRASS_EXTENSION_PAGE,
   HEADLESS,
-  CHROME_EXECTUABLE_PATH,
+  CHROME_EXECUTABLE_PATH,
   LOGIN_CHECK_FREQUENCY_HOURS,
   CHECK_FOR_UPDATES_LOGIN_FREQUENCY_MULTIPLIER,
+  EXTENSION_REFRESH_FREQUENCY_MINUTES,
 } = require('./constants.js');
 const login = require('./login.js');
 
@@ -90,8 +91,10 @@ async function createChromeProfileDirsIfNotExists() {
 }
 
 const intervalIds = [];
+const launching = false;
 
 async function run() {
+  launching = true;
   async function getSubDirectories(directoryPath) {
     try {
       const files = await fs.readdir(directoryPath);
@@ -116,7 +119,7 @@ async function run() {
 
     return await puppeteer.launch({
       headless: HEADLESS,
-      executablePath: CHROME_EXECTUABLE_PATH,
+      executablePath: CHROME_EXECUTABLE_PATH,
       userDataDir,
       args: [
         `--disable-extensions-except=${path.join(
@@ -186,6 +189,7 @@ async function run() {
   let loginCheckCounter = 0;
 
   async function launch(checkForUpdates) {
+    launching = true;
     if (checkForUpdates) {
       // close all browsers
       for (const browser of browsers) {
@@ -219,13 +223,14 @@ async function run() {
     for (let i = 0; i < browsers.length; i++) {
       await ensureLoggedIn(browsers[i], i);
     }
+    launching = false;
   }
 
   await launch(true);
 
   loginCheckCounter++;
 
-  const intervalId = setInterval(async () => {
+  const launchIntervalId = setInterval(async () => {
     console.log('refreshing. timestamp:', Date.now());
     console.log('loginCheckCounter:', loginCheckCounter);
 
@@ -243,7 +248,56 @@ async function run() {
 
     await launch(checkForUpdates);
   }, LOGIN_CHECK_FREQUENCY_HOURS * 60 * 60 * 1000);
-  intervalIds.push(intervalId);
+  intervalIds.push(launchIntervalId);
+
+  const extensionReloadIntervalId = setInterval(async () => {
+    if (launching) {
+      console.log('launching, skipping extension refresh');
+      return;
+    }
+
+    console.log('refreshing extension. timestamp:', Date.now());
+    for (const browser of browsers) {
+      try {
+        // find all pages with extension url
+        const pages = await browser.pages();
+        let extensionPages = pages.filter((page) =>
+          page.url().includes(EXTENSIONID)
+        );
+
+        if (extensionPages.length === 0) {
+          console.log('no extension pages found, opening extension page');
+          await openExtensionPage(browser);
+        } else if (extensionPages.length > 1) {
+          console.log(
+            'multiple extension pages found, closing all except for the first one'
+          );
+          for (let i = 1; i < extensionPages.length; i++) {
+            await extensionPages[i]?.close();
+          }
+        }
+
+        // refresh extension page
+        const newPages = await browser.pages();
+        extensionPages = newPages.filter((page) =>
+          page.url().includes(EXTENSIONID)
+        );
+        // check length again
+        if (extensionPages.length === 0) {
+          console.log(
+            `0 extension pages found after opening a new one. skipping this browser.`
+          );
+          continue;
+        }
+        console.log('refreshing extension page');
+        const extensionPage = extensionPages[0];
+        await extensionPage.reload();
+      } catch (error) {
+        console.error('Error refreshing extension:', error);
+      }
+    }
+  }, EXTENSION_REFRESH_FREQUENCY_MINUTES * 60 * 1000);
+  intervalIds.push(extensionReloadIntervalId);
 }
 
 async function main() {

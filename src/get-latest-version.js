@@ -2,7 +2,7 @@ const puppeteer = require('puppeteer');
 const {
   EXTENSION_URL,
   HEADLESS,
-  CHROME_EXECTUABLE_PATH,
+  CHROME_EXECUTABLE_PATH,
 } = require('./constants.js');
 
 async function latestVersions() {
@@ -10,7 +10,7 @@ async function latestVersions() {
   try {
     browser = await puppeteer.launch({
       headless: HEADLESS,
-      executablePath: CHROME_EXECTUABLE_PATH,
+      executablePath: CHROME_EXECUTABLE_PATH,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
     // check latest extension version
